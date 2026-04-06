@@ -331,6 +331,7 @@
             border-radius: 20px;
             padding: 10px;
             border: 1px solid rgba(212, 175, 55, 0.2);
+            min-height: 500px;
         }
         /* Formulários internos */
         .form-group {
@@ -532,6 +533,7 @@
     let nextProjetoId = 1;
     let nextTarefaId = 1;
     let calendarInstance = null;
+    let pendingCalendarProjectId = null; // Para renderizar quando a aba ficar visível
 
     function carregarDados() {
         if (!currentUser) return;
@@ -631,7 +633,11 @@
                         tarefa.status = newStatus;
                         salvarDados();
                         renderizarKanban(projetoId);
-                        renderizarCalendario(projetoId);
+                        // Atualiza calendário se o projeto atual estiver selecionado no calendário
+                        const selectCal = document.getElementById('selectProjetoCalendario');
+                        if (selectCal && selectCal.value == projetoId) {
+                            renderizarCalendario(projetoId);
+                        }
                     }
                 }
             });
@@ -642,24 +648,83 @@
         });
     }
 
+    // Função melhorada para renderizar o calendário (evita renderização em elemento oculto)
     function renderizarCalendario(projetoId) {
-        if (!projetoId) return;
+        if (!projetoId) {
+            if (calendarInstance) {
+                calendarInstance.destroy();
+                calendarInstance = null;
+            }
+            return;
+        }
+
+        // Verifica se a aba de calendário está visível
+        const tabCalendario = document.getElementById('tabCalendario');
+        const isCalendarTabActive = tabCalendario && tabCalendario.classList.contains('active');
+        
+        if (!isCalendarTabActive) {
+            // Se a aba não está ativa, apenas armazena o projeto pendente
+            pendingCalendarProjectId = projetoId;
+            return;
+        }
+        
+        // Se chegou aqui, a aba está ativa, podemos renderizar
+        pendingCalendarProjectId = null;
+        
+        // Verifica se o FullCalendar está disponível
+        if (typeof FullCalendar === 'undefined') {
+            console.error('FullCalendar não carregado');
+            const calendarEl = document.getElementById('calendar');
+            if (calendarEl) calendarEl.innerHTML = '<p style="text-align:center; color:red;">Erro: Calendário não pode ser carregado. Recarregue a página.</p>';
+            return;
+        }
+        
         const tarefasProjeto = tarefas.filter(t => t.projetoId == projetoId && t.prazo);
         const events = tarefasProjeto.map(t => ({
             title: t.titulo,
             start: t.prazo,
             allDay: true,
-            color: t.status === 'done' ? '#28a745' : (t.status === 'doing' ? '#fd7e14' : '#dc3545')
+            color: t.status === 'done' ? '#28a745' : (t.status === 'doing' ? '#fd7e14' : '#dc3545'),
+            extendedProps: { tarefaId: t.id }
         }));
+        
         const calendarEl = document.getElementById('calendar');
-        if (calendarInstance) calendarInstance.destroy();
+        if (!calendarEl) return;
+        
+        // Destrói instância anterior se existir
+        if (calendarInstance) {
+            calendarInstance.destroy();
+            calendarInstance = null;
+        }
+        
+        // Cria novo calendário
         calendarInstance = new FullCalendar.Calendar(calendarEl, {
             initialView: 'dayGridMonth',
             events: events,
             height: 'auto',
-            headerToolbar: { left: 'prev,next today', center: 'title', right: 'dayGridMonth,dayGridWeek' }
+            headerToolbar: {
+                left: 'prev,next today',
+                center: 'title',
+                right: 'dayGridMonth,dayGridWeek'
+            },
+            eventClick: (info) => {
+                // Exibe detalhes da tarefa ao clicar no evento
+                const tarefaId = info.event.extendedProps.tarefaId;
+                const tarefa = tarefas.find(t => t.id == tarefaId);
+                if (tarefa) {
+                    criarModalAviso('📋 Detalhes da Tarefa', 
+                        `<strong>${tarefa.titulo}</strong><br>
+                         Status: ${tarefa.status === 'todo' ? 'A fazer' : (tarefa.status === 'doing' ? 'Em andamento' : 'Concluído')}<br>
+                         Prazo: ${tarefa.prazo || 'Não definido'}`);
+                }
+            }
         });
         calendarInstance.render();
+        
+        // Pequeno ajuste para garantir que o calendário ocupe todo o espaço
+        setTimeout(() => {
+            if (calendarInstance) calendarInstance.updateSize();
+        }, 100);
     }
 
     // ---------- Modais de luxo (substituem prompt/alert) ----------
@@ -719,6 +784,11 @@
             projetos.push({ id: nextProjetoId++, nome: valores.nome.trim(), prazo: valores.prazo || '' });
             salvarDados();
             renderizarProjetos();
+            // Se o calendário estiver visível e com algum projeto, não precisa fazer nada extra
+            const selectCal = document.getElementById('selectProjetoCalendario');
+            if (selectCal && selectCal.value) {
+                renderizarCalendario(selectCal.value);
+            }
         });
     }
 
@@ -740,7 +810,11 @@
             });
             salvarDados();
             renderizarKanban(projetoId);
-            renderizarCalendario(projetoId);
+            // Atualiza calendário se o projeto atual for o mesmo
+            const selectCal = document.getElementById('selectProjetoCalendario');
+            if (selectCal && selectCal.value == projetoId) {
+                renderizarCalendario(projetoId);
+            }
         });
     }
 
@@ -777,8 +851,14 @@
             const selectCal = document.getElementById('selectProjetoCalendario');
             if (selectCal && selectCal.value == id) {
                 selectCal.value = '';
-                if (calendarInstance) calendarInstance.destroy();
-                calendarInstance = null;
+                if (calendarInstance) {
+                    calendarInstance.destroy();
+                    calendarInstance = null;
+                }
+                document.getElementById('calendar').innerHTML = ''; // Limpa o conteúdo
+            } else if (selectCal && selectCal.value) {
+                // Se outro projeto estiver selecionado, atualiza o calendário
+                renderizarCalendario(selectCal.value);
             }
         });
     };
@@ -815,11 +895,19 @@
         else document.getElementById('kanbanBoard').innerHTML = '<p>Selecione um projeto.</p>';
     });
     document.getElementById('selectProjetoCalendario')?.addEventListener('change', (e) => {
-        if (e.target.value) renderizarCalendario(e.target.value);
-        else if (calendarInstance) { calendarInstance.destroy(); calendarInstance = null; }
+        const projetoId = e.target.value;
+        if (projetoId) {
+            renderizarCalendario(projetoId);
+        } else {
+            if (calendarInstance) {
+                calendarInstance.destroy();
+                calendarInstance = null;
+            }
+            document.getElementById('calendar').innerHTML = '';
+        }
     });
 
-    // Abas
+    // Abas - melhorado para garantir que o calendário seja renderizado quando a aba for ativada
     document.querySelectorAll('.tab-btn').forEach(btn => {
         btn.addEventListener('click', () => {
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -827,13 +915,26 @@
             const tab = btn.dataset.tab;
             document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
             document.getElementById(`tab${tab.charAt(0).toUpperCase() + tab.slice(1)}`).classList.add('active');
+            
             if (tab === 'kanban') {
                 const select = document.getElementById('selectProjetoKanban');
                 if (select && select.value) renderizarKanban(select.value);
             }
             if (tab === 'calendario') {
                 const select = document.getElementById('selectProjetoCalendario');
-                if (select && select.value) renderizarCalendario(select.value);
+                if (select && select.value) {
+                    renderizarCalendario(select.value);
+                } else if (pendingCalendarProjectId) {
+                    // Se havia um projeto pendente, renderiza agora
+                    renderizarCalendario(pendingCalendarProjectId);
+                    // Sincroniza o select
+                    const selectCal = document.getElementById('selectProjetoCalendario');
+                    if (selectCal && pendingCalendarProjectId) selectCal.value = pendingCalendarProjectId;
+                }
+                // Se não houver projeto selecionado, exibe mensagem amigável
+                if (!select.value && !pendingCalendarProjectId) {
+                    document.getElementById('calendar').innerHTML = '<p style="text-align:center; padding:2rem;">Selecione um projeto para visualizar o calendário.</p>';
+                }
             }
         });
     });
@@ -854,6 +955,8 @@
         document.getElementById('selectProjetoCalendario').innerHTML = '<option value="">Selecione um projeto</option>';
         document.getElementById('kanbanBoard').innerHTML = '<p>Selecione um projeto.</p>';
         if (calendarInstance) { calendarInstance.destroy(); calendarInstance = null; }
+        document.getElementById('calendar').innerHTML = '';
+        pendingCalendarProjectId = null;
         document.getElementById('loginScreen').classList.add('hidden');
         document.getElementById('appScreen').classList.remove('hidden');
     });
@@ -864,6 +967,11 @@
         document.getElementById('loginScreen').classList.remove('hidden');
         document.getElementById('appScreen').classList.add('hidden');
         document.getElementById('nomeUsuario').value = '';
+        if (calendarInstance) {
+            calendarInstance.destroy();
+            calendarInstance = null;
+        }
+        pendingCalendarProjectId = null;
     });
 
     function adjustPadding() {
@@ -873,6 +981,13 @@
     }
     adjustPadding();
     window.addEventListener('resize', adjustPadding);
+    
+    // Garante que o calendário seja recalculado se a janela for redimensionada enquanto a aba está ativa
+    window.addEventListener('resize', () => {
+        if (calendarInstance && document.getElementById('tabCalendario').classList.contains('active')) {
+            calendarInstance.updateSize();
+        }
+    });
 </script>
 </body>
 </html>
