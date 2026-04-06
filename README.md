@@ -22,10 +22,9 @@ Tecnologias utilizadas
 
 Como executar
 
-1. Baixe o arquivo `index.html`
-2. Abra com qualquer navegador moderno (Chrome, Firefox, Edge)
-3. Digite um nome e clique em "Entrar"
-4. Comece a gerenciar seus projetos e tarefas!
+1. Abra com qualquer navegador moderno (Chrome, Firefox, Edge)
+2. Digite um nome e clique em "Entrar"
+3. Comece a gerenciar seus projetos e tarefas!
 
 Estrutura do projeto
 
