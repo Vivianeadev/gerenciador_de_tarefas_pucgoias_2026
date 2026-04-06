@@ -1,0 +1,713 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>V9 Gerenciador de Tarefas</title>
+    <!-- Fontes do exemplo -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Cinzel:wght@400;500;600;700&family=Marcellus&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <!-- FullCalendar -->
+    <link href="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.js"></script>
+    <style>
+        :root {
+            --color-primary: #0a3147;
+            --color-primary-light: #1a4b6d;
+            --gold-primary: #D4AF37;
+            --gold-secondary: #F4E4B8;
+            --gold-dark: #B8860B;
+            --color-dark: #1A1A1A;
+            --color-text: #2b2b2b;
+            --color-text-light: #4a4a4a;
+            --color-bg: linear-gradient(135deg, #f9f5f0 0%, #faf0f4 100%);
+            --transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            --shadow-luxury: 0 25px 50px rgba(10, 49, 71, 0.1);
+            --shadow-gold: 0 8px 32px rgba(212, 175, 55, 0.3);
+            --gradient-gold: linear-gradient(135deg, #D4AF37 0%, #F4E4B8 50%, #B8860B 100%);
+            --gradient-gold-subtle: linear-gradient(135deg, rgba(212, 175, 55, 0.1) 0%, rgba(244, 228, 184, 0.1) 100%);
+        }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--color-bg);
+            color: var(--color-text);
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+        /* Partículas de luxo (igual ao exemplo) */
+        .luxury-particles {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 0;
+        }
+        .luxury-particle {
+            position: absolute;
+            background: radial-gradient(circle, var(--gold-primary) 0%, transparent 70%);
+            border-radius: 50%;
+            opacity: 0;
+            animation: floatLuxury 20s infinite linear;
+        }
+        @keyframes floatLuxury {
+            0% { transform: translateY(100vh) rotate(0deg) scale(0.5); opacity: 0; }
+            10% { opacity: 0.15; }
+            90% { opacity: 0.15; }
+            100% { transform: translateY(-100px) rotate(360deg) scale(1); opacity: 0; }
+        }
+        /* Header fixo */
+        .header {
+            position: fixed;
+            top: 0;
+            width: 100%;
+            background: rgba(255, 255, 255, 0.98);
+            backdrop-filter: blur(20px);
+            z-index: 1000;
+            padding: 0.8rem 0;
+            transition: var(--transition);
+            border-bottom: 1px solid rgba(212, 175, 55, 0.15);
+        }
+        .nav-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 2rem;
+        }
+        .logo {
+            font-family: 'Cinzel', serif;
+            font-size: 1.8rem;
+            font-weight: 600;
+            color: var(--color-primary);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            position: relative;
+            padding-bottom: 8px;
+        }
+        .logo::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 50px;
+            height: 2px;
+            background: var(--gradient-gold);
+        }
+        .logo span {
+            display: block;
+            font-size: 0.7rem;
+            letter-spacing: 3px;
+            color: var(--gold-dark);
+            font-family: 'Marcellus', serif;
+        }
+        .user-info {
+            font-family: 'Marcellus', serif;
+            color: var(--color-primary);
+            background: rgba(212, 175, 55, 0.1);
+            padding: 6px 16px;
+            border-radius: 40px;
+            border: 1px solid rgba(212, 175, 55, 0.3);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .user-info button {
+            background: none;
+            border: none;
+            color: var(--gold-dark);
+            cursor: pointer;
+            font-size: 1.2rem;
+            transition: var(--transition);
+        }
+        .user-info button:hover {
+            color: var(--gold-primary);
+        }
+        /* Container principal */
+        .main-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 6rem 2rem 3rem;
+            position: relative;
+            z-index: 2;
+        }
+        /* Telas de login e app */
+        .screen {
+            transition: all 0.3s;
+        }
+        .hidden {
+            display: none;
+        }
+        /* Login box luxuoso */
+        .login-box {
+            max-width: 450px;
+            margin: 80px auto;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 2.5rem;
+            border-radius: 28px;
+            border: 1px solid rgba(212, 175, 55, 0.25);
+            box-shadow: var(--shadow-luxury);
+            text-align: center;
+        }
+        .login-box h2 {
+            font-family: 'Cinzel', serif;
+            color: var(--color-primary);
+            margin-bottom: 0.5rem;
+        }
+        .login-box p {
+            font-family: 'Marcellus', serif;
+            color: var(--color-text-light);
+            margin-bottom: 1.5rem;
+        }
+        .login-box input {
+            width: 100%;
+            padding: 12px;
+            margin: 10px 0;
+            border: 1px solid rgba(212, 175, 55, 0.3);
+            border-radius: 12px;
+            background: white;
+            font-family: 'Inter', sans-serif;
+        }
+        .login-box button {
+            background: var(--gradient-gold);
+            color: var(--color-primary);
+            border: none;
+            padding: 12px;
+            border-radius: 40px;
+            cursor: pointer;
+            width: 100%;
+            font-size: 1rem;
+            font-weight: 600;
+            transition: var(--transition);
+            margin-top: 10px;
+        }
+        .login-box button:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-gold);
+        }
+        /* Abas */
+        .tabs {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        .tab-btn {
+            font-family: 'Cinzel', serif;
+            padding: 10px 28px;
+            background: rgba(255, 255, 255, 0.8);
+            border: 1px solid rgba(212, 175, 55, 0.3);
+            border-radius: 40px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: var(--transition);
+            color: var(--color-primary);
+        }
+        .tab-btn.active {
+            background: var(--gradient-gold);
+            color: var(--color-primary);
+            border-color: transparent;
+            box-shadow: var(--shadow-gold);
+        }
+        .tab-content {
+            display: none;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 28px;
+            padding: 2rem;
+            border: 1px solid rgba(212, 175, 55, 0.2);
+            box-shadow: var(--shadow-luxury);
+        }
+        .tab-content.active {
+            display: block;
+        }
+        /* Botões e cards */
+        .btn-gold {
+            background: var(--gradient-gold);
+            color: var(--color-primary);
+            border: none;
+            padding: 8px 20px;
+            border-radius: 40px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .btn-gold:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-gold);
+        }
+        .btn-outline-gold {
+            background: transparent;
+            border: 1px solid var(--gold-primary);
+            color: var(--color-primary);
+            padding: 6px 16px;
+            border-radius: 40px;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+        .btn-outline-gold:hover {
+            background: var(--gold-primary);
+            color: white;
+        }
+        .projeto-item {
+            background: white;
+            padding: 16px;
+            margin: 12px 0;
+            border-radius: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border: 1px solid rgba(212, 175, 55, 0.2);
+            transition: var(--transition);
+        }
+        .projeto-item:hover {
+            border-color: var(--gold-primary);
+            box-shadow: var(--shadow-luxury);
+        }
+        /* Kanban */
+        .kanban-board {
+            display: flex;
+            gap: 20px;
+            overflow-x: auto;
+            padding: 10px 0;
+        }
+        .kanban-col {
+            flex: 1;
+            min-width: 280px;
+            background: rgba(248, 249, 250, 0.8);
+            border-radius: 20px;
+            padding: 16px;
+            border: 1px solid rgba(212, 175, 55, 0.2);
+        }
+        .kanban-col h3 {
+            font-family: 'Cinzel', serif;
+            text-align: center;
+            color: var(--color-primary);
+            margin-bottom: 16px;
+            font-size: 1.3rem;
+        }
+        .task-card {
+            background: white;
+            padding: 12px;
+            margin: 12px 0;
+            border-radius: 16px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            cursor: grab;
+            border-left: 4px solid var(--gold-primary);
+            transition: var(--transition);
+        }
+        .task-card:active {
+            cursor: grabbing;
+        }
+        .task-card.dragging {
+            opacity: 0.5;
+        }
+        .add-task-btn {
+            background: var(--gradient-gold-subtle);
+            border: 1px dashed var(--gold-primary);
+            color: var(--color-primary);
+            padding: 10px;
+            width: 100%;
+            border-radius: 40px;
+            cursor: pointer;
+            margin-top: 16px;
+            font-weight: 500;
+        }
+        /* Calendário */
+        #calendar {
+            background: white;
+            border-radius: 20px;
+            padding: 10px;
+            border: 1px solid rgba(212, 175, 55, 0.2);
+        }
+        /* Formulários */
+        .form-group {
+            margin-bottom: 20px;
+        }
+        .form-group label {
+            font-weight: 500;
+            color: var(--color-primary);
+            display: block;
+            margin-bottom: 6px;
+        }
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid rgba(212, 175, 55, 0.3);
+            border-radius: 12px;
+            background: white;
+        }
+        /* Footer */
+        .footer {
+            background: var(--color-primary);
+            color: white;
+            text-align: center;
+            padding: 2rem;
+            margin-top: 3rem;
+            border-top: 1px solid rgba(212, 175, 55, 0.3);
+        }
+        .footer p {
+            font-family: 'Marcellus', serif;
+            font-size: 0.9rem;
+        }
+        @media (max-width: 768px) {
+            .main-container { padding: 5rem 1rem 2rem; }
+            .tabs { gap: 8px; }
+            .tab-btn { padding: 6px 16px; font-size: 0.9rem; }
+            .tab-content { padding: 1rem; }
+        }
+    </style>
+</head>
+<body>
+<div class="luxury-particles" id="luxuryParticles"></div>
+
+<header class="header">
+    <div class="nav-container">
+        <div class="logo">V9 TAREFAS<span>Gerenciamento de Alto Nível</span></div>
+        <div class="user-info" id="userInfo" style="display: none;">
+            <span id="userNameDisplay"></span>
+            <button id="btnLogout"><i class="fas fa-sign-out-alt"></i></button>
+        </div>
+    </div>
+</header>
+
+<div class="main-container">
+    <!-- Tela de login -->
+    <div id="loginScreen" class="login-box screen">
+        <h2>V9 Gerenciador de Tarefas</h2>
+        <p>Digite seu nome para acessar o sistema</p>
+        <input type="text" id="nomeUsuario" placeholder="Seu nome" autocomplete="off">
+        <button id="btnEntrar">Entrar</button>
+        <p style="font-size: 0.7rem; margin-top: 1rem;">*Demonstração local – dados salvos no navegador</p>
+    </div>
+
+    <!-- Tela principal -->
+    <div id="appScreen" class="screen hidden">
+        <div class="tabs">
+            <button class="tab-btn active" data-tab="projetos">📁 Projetos</button>
+            <button class="tab-btn" data-tab="kanban">📌 Quadro Kanban</button>
+            <button class="tab-btn" data-tab="calendario">📅 Calendário</button>
+        </div>
+
+        <div id="tabProjetos" class="tab-content active">
+            <button class="btn-gold" id="btnNovoProjeto"><i class="fas fa-plus"></i> Novo Projeto</button>
+            <div id="listaProjetos" style="margin-top: 20px;"></div>
+        </div>
+
+        <div id="tabKanban" class="tab-content">
+            <div class="form-group">
+                <label>Selecione um projeto:</label>
+                <select id="selectProjetoKanban"></select>
+            </div>
+            <div id="kanbanBoard" class="kanban-board"></div>
+        </div>
+
+        <div id="tabCalendario" class="tab-content">
+            <div class="form-group">
+                <label>Selecione um projeto:</label>
+                <select id="selectProjetoCalendario"></select>
+            </div>
+            <div id="calendar"></div>
+        </div>
+    </div>
+</div>
+
+<footer class="footer">
+    <p>© 2026 V9 Gerenciador de Tarefas | Estrutura Descentralizada • Kanban • Calendário Integrado</p>
+    <p style="font-size: 0.8rem; margin-top: 0.5rem;">Responsável técnica: Viviane Baz | Arquitetura Sob Demanda</p>
+</footer>
+
+<script>
+    // Partículas de luxo
+    (function createParticles() {
+        let container = document.getElementById('luxuryParticles');
+        if (!container) return;
+        for (let i = 0; i < 30; i++) {
+            const p = document.createElement('div');
+            p.classList.add('luxury-particle');
+            const size = Math.random() * 5 + 1.5;
+            p.style.width = `${size}px`;
+            p.style.height = `${size}px`;
+            p.style.left = `${Math.random() * 100}vw`;
+            p.style.animationDelay = `${Math.random() * 18}s`;
+            p.style.animationDuration = `${Math.random() * 12 + 10}s`;
+            container.appendChild(p);
+        }
+    })();
+
+    // Dados globais
+    let currentUser = null;
+    let projetos = [];
+    let tarefas = [];
+    let nextProjetoId = 1;
+    let nextTarefaId = 1;
+    let calendarInstance = null;
+
+    function carregarDados() {
+        if (!currentUser) return;
+        const storageKey = `v9_tarefas_${currentUser}`;
+        const dados = localStorage.getItem(storageKey);
+        if (dados) {
+            const obj = JSON.parse(dados);
+            projetos = obj.projetos || [];
+            tarefas = obj.tarefas || [];
+            nextProjetoId = obj.nextProjetoId || 1;
+            nextTarefaId = obj.nextTarefaId || 1;
+        } else {
+            // dados iniciais de exemplo
+            projetos = [
+                { id: 1, nome: "Projeto Piloto V9", prazo: "2026-05-10" }
+            ];
+            tarefas = [
+                { id: 1, projetoId: 1, titulo: "Definir requisitos", prazo: "2026-04-15", status: "todo" },
+                { id: 2, projetoId: 1, titulo: "Criar Kanban", prazo: "2026-04-20", status: "doing" },
+                { id: 3, projetoId: 1, titulo: "Gravar vídeo", prazo: "2026-04-25", status: "done" }
+            ];
+            nextProjetoId = 2;
+            nextTarefaId = 4;
+        }
+    }
+
+    function salvarDados() {
+        if (!currentUser) return;
+        const storageKey = `v9_tarefas_${currentUser}`;
+        localStorage.setItem(storageKey, JSON.stringify({
+            projetos, tarefas, nextProjetoId, nextTarefaId
+        }));
+    }
+
+    function renderizarProjetos() {
+        const div = document.getElementById('listaProjetos');
+        if (!div) return;
+        if (projetos.length === 0) {
+            div.innerHTML = '<p style="text-align:center;">Nenhum projeto. Crie o primeiro!</p>';
+        } else {
+            let html = '';
+            projetos.forEach(p => {
+                html += `<div class="projeto-item">
+                            <div><strong>${p.nome}</strong> ${p.prazo ? `<span style="color:var(--gold-dark);">(Prazo: ${p.prazo})</span>` : ''}</div>
+                            <button class="btn-outline-gold" onclick="excluirProjeto(${p.id})">Excluir</button>
+                         </div>`;
+            });
+            div.innerHTML = html;
+        }
+        // Atualiza selects
+        const selectKanban = document.getElementById('selectProjetoKanban');
+        const selectCal = document.getElementById('selectProjetoCalendario');
+        const options = '<option value="">Selecione um projeto</option>' + 
+            projetos.map(p => `<option value="${p.id}">${p.nome}</option>`).join('');
+        if (selectKanban) selectKanban.innerHTML = options;
+        if (selectCal) selectCal.innerHTML = options;
+    }
+
+    function renderizarKanban(projetoId) {
+        const board = document.getElementById('kanbanBoard');
+        if (!board) return;
+        if (!projetoId) {
+            board.innerHTML = '<p style="text-align:center;">Selecione um projeto para visualizar o Kanban.</p>';
+            return;
+        }
+        const tarefasProjeto = tarefas.filter(t => t.projetoId == projetoId);
+        const statusMap = {
+            'todo': { titulo: '📌 A fazer', lista: [] },
+            'doing': { titulo: '⚙️ Em andamento', lista: [] },
+            'done': { titulo: '✅ Concluído', lista: [] }
+        };
+        tarefasProjeto.forEach(t => {
+            if (statusMap[t.status]) statusMap[t.status].lista.push(t);
+        });
+        let html = '';
+        for (let [key, col] of Object.entries(statusMap)) {
+            html += `<div class="kanban-col" data-status="${key}" data-projeto="${projetoId}">
+                        <h3>${col.titulo}</h3>`;
+            col.lista.forEach(t => {
+                html += `<div class="task-card" draggable="true" data-id="${t.id}" data-status="${t.status}">
+                            <strong>${t.titulo}</strong><br>
+                            <small><i class="far fa-calendar-alt"></i> ${t.prazo || 'sem prazo'}</small>
+                         </div>`;
+            });
+            html += `<button class="add-task-btn" data-status="${key}">+ Adicionar tarefa</button>
+                    </div>`;
+        }
+        board.innerHTML = html;
+
+        // Eventos drag & drop
+        document.querySelectorAll('.task-card').forEach(card => {
+            card.addEventListener('dragstart', e => {
+                e.dataTransfer.setData('text/plain', JSON.stringify({
+                    id: card.dataset.id,
+                    oldStatus: card.dataset.status
+                }));
+                card.classList.add('dragging');
+            });
+            card.addEventListener('dragend', e => card.classList.remove('dragging'));
+        });
+        document.querySelectorAll('.kanban-col').forEach(col => {
+            col.addEventListener('dragover', e => e.preventDefault());
+            col.addEventListener('drop', e => {
+                e.preventDefault();
+                const data = JSON.parse(e.dataTransfer.getData('text/plain'));
+                const newStatus = col.dataset.status;
+                if (data.oldStatus !== newStatus) {
+                    const tarefa = tarefas.find(t => t.id == data.id);
+                    if (tarefa) {
+                        tarefa.status = newStatus;
+                        salvarDados();
+                        renderizarKanban(projetoId);
+                        renderizarCalendario(projetoId);
+                    }
+                }
+            });
+        });
+        // Botões de adicionar tarefa
+        document.querySelectorAll('.add-task-btn').forEach(btn => {
+            btn.onclick = () => {
+                const status = btn.dataset.status;
+                const titulo = prompt('Título da tarefa:');
+                if (!titulo) return;
+                const prazo = prompt('Prazo (AAAA-MM-DD) ou deixe em branco:');
+                const novaTarefa = {
+                    id: nextTarefaId++,
+                    projetoId: parseInt(projetoId),
+                    titulo: titulo,
+                    prazo: prazo || '',
+                    status: status
+                };
+                tarefas.push(novaTarefa);
+                salvarDados();
+                renderizarKanban(projetoId);
+                renderizarCalendario(projetoId);
+            };
+        });
+    }
+
+    function renderizarCalendario(projetoId) {
+        if (!projetoId) return;
+        const tarefasProjeto = tarefas.filter(t => t.projetoId == projetoId && t.prazo);
+        const events = tarefasProjeto.map(t => ({
+            title: t.titulo,
+            start: t.prazo,
+            allDay: true,
+            color: t.status === 'done' ? '#28a745' : (t.status === 'doing' ? '#fd7e14' : '#dc3545')
+        }));
+        const calendarEl = document.getElementById('calendar');
+        if (calendarInstance) calendarInstance.destroy();
+        calendarInstance = new FullCalendar.Calendar(calendarEl, {
+            initialView: 'dayGridMonth',
+            events: events,
+            height: 'auto',
+            headerToolbar: {
+                left: 'prev,next today',
+                center: 'title',
+                right: 'dayGridMonth,dayGridWeek'
+            }
+        });
+        calendarInstance.render();
+    }
+
+    window.excluirProjeto = (id) => {
+        if (confirm('Excluir este projeto e todas as suas tarefas?')) {
+            projetos = projetos.filter(p => p.id !== id);
+            tarefas = tarefas.filter(t => t.projetoId !== id);
+            salvarDados();
+            renderizarProjetos();
+            const selectKanban = document.getElementById('selectProjetoKanban');
+            if (selectKanban && selectKanban.value == id) {
+                selectKanban.value = '';
+                document.getElementById('kanbanBoard').innerHTML = '<p>Selecione um projeto.</p>';
+            }
+            const selectCal = document.getElementById('selectProjetoCalendario');
+            if (selectCal && selectCal.value == id) {
+                selectCal.value = '';
+                if (calendarInstance) calendarInstance.destroy();
+                calendarInstance = null;
+            }
+        }
+    };
+
+    document.getElementById('btnNovoProjeto')?.addEventListener('click', () => {
+        const nome = prompt('Nome do projeto:');
+        if (!nome) return;
+        const prazo = prompt('Prazo final (AAAA-MM-DD) ou deixe em branco:');
+        projetos.push({ id: nextProjetoId++, nome, prazo: prazo || '' });
+        salvarDados();
+        renderizarProjetos();
+    });
+
+    document.getElementById('selectProjetoKanban')?.addEventListener('change', (e) => {
+        const val = e.target.value;
+        if (val) renderizarKanban(val);
+        else document.getElementById('kanbanBoard').innerHTML = '<p>Selecione um projeto.</p>';
+    });
+    document.getElementById('selectProjetoCalendario')?.addEventListener('change', (e) => {
+        const val = e.target.value;
+        if (val) renderizarCalendario(val);
+        else if (calendarInstance) { calendarInstance.destroy(); calendarInstance = null; }
+    });
+
+    // Abas
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            const tab = btn.dataset.tab;
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            document.getElementById(`tab${tab.charAt(0).toUpperCase() + tab.slice(1)}`).classList.add('active');
+            if (tab === 'kanban') {
+                const select = document.getElementById('selectProjetoKanban');
+                if (select && select.value) renderizarKanban(select.value);
+            }
+            if (tab === 'calendario') {
+                const select = document.getElementById('selectProjetoCalendario');
+                if (select && select.value) renderizarCalendario(select.value);
+            }
+        });
+    });
+
+    // Login / Logout
+    document.getElementById('btnEntrar')?.addEventListener('click', () => {
+        const nome = document.getElementById('nomeUsuario').value.trim();
+        if (nome === '') { alert('Digite seu nome'); return; }
+        currentUser = nome;
+        document.getElementById('userNameDisplay').innerText = `Olá, ${nome}`;
+        document.getElementById('userInfo').style.display = 'flex';
+        carregarDados();
+        renderizarProjetos();
+        document.getElementById('selectProjetoKanban').innerHTML = '<option value="">Selecione um projeto</option>';
+        document.getElementById('selectProjetoCalendario').innerHTML = '<option value="">Selecione um projeto</option>';
+        document.getElementById('kanbanBoard').innerHTML = '<p>Selecione um projeto.</p>';
+        if (calendarInstance) { calendarInstance.destroy(); calendarInstance = null; }
+        document.getElementById('loginScreen').classList.add('hidden');
+        document.getElementById('appScreen').classList.remove('hidden');
+    });
+
+    document.getElementById('btnLogout')?.addEventListener('click', () => {
+        currentUser = null;
+        document.getElementById('userInfo').style.display = 'none';
+        document.getElementById('loginScreen').classList.remove('hidden');
+        document.getElementById('appScreen').classList.add('hidden');
+        document.getElementById('nomeUsuario').value = '';
+    });
+
+    // Ajuste do padding do header
+    function adjustPadding() {
+        const header = document.querySelector('.header');
+        const main = document.querySelector('.main-container');
+        if (header && main) main.style.paddingTop = `${header.offsetHeight + 20}px`;
+    }
+    adjustPadding();
+    window.addEventListener('resize', adjustPadding);
+</script>
+</body>
+</html>
